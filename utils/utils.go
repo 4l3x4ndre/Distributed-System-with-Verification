@@ -73,3 +73,11 @@ func ParseFloatArray(s string) []float32 {
 	}
 	return result
 }
+
+func Float32SliceToStringSlice(floats []float32) []string {
+	strs := make([]string, len(floats))
+	for i, f := range floats {
+		strs[i] = fmt.Sprintf("%.5f", f) // format précis à 5 décimales
+	}
+	return strs
+}
