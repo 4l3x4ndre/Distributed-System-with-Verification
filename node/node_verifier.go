@@ -2,8 +2,8 @@ package node
 
 import (
 	// "fmt"
+
 	"strconv"
-	"time"
 
 	// "bufio" // Use bufio to read full line, as fmt.Scanln split at new line AND spaces
 	"os" // Use for the bufio reader: reads from os stdin
@@ -108,8 +108,16 @@ func (v *VerifierNode) HandleMessage(channel chan string) {
 				stateCode = 1 // valid
 			}
 
-			// Sauvegarde dans le fichier log
-			v.logReceivedReading(msg_sender, readingVal, stateCode)
+			msgID := format.Findval(msg, "id", v.GetName())
+
+			v.logReceivedReading(
+				msgID,
+				format.Findval(msg, "sender_name", v.GetName()),
+				format.Findval(msg, "destination", v.GetName()),
+				v.clock,
+				v.vectorClock,
+				stateCode,
+			)
 
 		case "snapshot_request":
 			format.Display(format.Format_d(
@@ -186,17 +194,21 @@ func (v *VerifierNode) HandleMessage(channel chan string) {
 
 }
 
-func (v *VerifierNode) logReceivedReading(sender string, temperature float64, stateCode int) {
-	filename := "node_" + v.ID() + ".log"
+func (v *VerifierNode) logReceivedReading(msgID string, sender string, destination string, clk int, vectorClock []int, stateCode int) {
+	filename := "node_" + v.ID() + ".txt"
 
-	line := "/" + "timestamp=" + time.Now().Format(time.RFC3339) +
-		"/from=" + sender +
-		"/temp=" + strconv.FormatFloat(temperature, 'f', 2, 64) +
+	logLine := "/" + "id=" + msgID +
+		"/type=verifier" +
+		"/sender_name=" + sender +
+		"/sender_type=verifier" +
+		"/destination=" + destination +
+		"/clk=" + strconv.Itoa(clk) +
+		"/vector_clock=" + utils.SerializeVectorClock(vectorClock) +
 		"/state=" + strconv.Itoa(stateCode) + "\n"
 
 	f, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err == nil {
 		defer f.Close()
-		f.WriteString(line)
+		f.WriteString(logLine)
 	}
 }
