@@ -175,7 +175,8 @@ func (c *ControlLayer) HandleMessage(msg string) error {
 			propagate_msg = true
 
 		case "snapshot_request":
-			c.channel_to_application <- msg
+			// c.channel_to_application <- msg
+			// c.SendMsg(msg)
 			c.SendMsg(msg, true)
 			format.Display(format.Format_d(
 				c.GetName(), "HandleMessage()",
@@ -272,7 +273,8 @@ func (c *ControlLayer) HandleMessage(msg string) error {
 				return nil
 			}
 
-			format.Display(format.Format_d(c.GetName(), "HandleMessage()", "📥 snapshot_response reçu"))
+			// snapshot de recu de l'un des nodes
+			format.Display(format.Format_d(c.GetName(), "HandleMessage()", "📦 snapshot_response reçu"))
 
 			// Mise à jour de l'horloge vectorielle locale
 			vcStr := format.Findval(msg, "vector_clock", c.GetName())
@@ -287,7 +289,7 @@ func (c *ControlLayer) HandleMessage(msg string) error {
 			c.vectorClock[c.nodeIndex]++
 
 			// Extraction des données du snapshot
-			sensorID := format.Findval(msg, "sender_name", c.GetName())
+			sensorID := format.Findval(msg, "sender_name_source", c.GetName())
 			valuesStr := format.Findval(msg, "content_value", c.GetName())
 			values := utils.ParseFloatArray(valuesStr)
 
@@ -299,9 +301,13 @@ func (c *ControlLayer) HandleMessage(msg string) error {
 			}
 			c.mu.Unlock()
 
+			//afficher le noms des sites qui ont répondu
+			format.Display(format.Format_d(
+				c.GetName(), "HandleMessage()",
+				"📥 snapshot_response reçu de "+format.Findval(msg, "sender_name_source", c.GetName())))
+
 			// Vérifie si tous les capteurs ont répondu
-			sensorNames := c.getSensorNames() // Fonction à ajouter : filtre les knownSiteNames pour ne garder que ceux qui commencent par "sensor"
-			if len(c.receivedSnapshots) == len(sensorNames) {
+			if len(c.receivedSnapshots) == len(c.knownSiteNames)-1 {
 				go c.CheckSnapshotCoherence() // méthode que tu dois avoir déjà codée
 			}
 		}
@@ -449,6 +455,7 @@ func (c *ControlLayer) SendMsg(msg string, through_channelArgs ...bool) {
 // 🔥ONLY node whose id is zero will send the pear discovery message.
 func (c *ControlLayer) SendPearDiscovery() {
 	c.SendControlMsg(c.GetName(), "siteName", "pear_discovery", "control", "", c.GetName())
+
 }
 
 // When closing, node 0 will send the names it acquired during
@@ -519,12 +526,21 @@ func (c *ControlLayer) RequestSnapshot() {
 }
 
 func (c *ControlLayer) CheckSnapshotCoherence() {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
 	ids := []string{}
 	for id := range c.receivedSnapshots {
 		ids = append(ids, id)
+	}
+
+	if len(ids) == 1 {
+		format.Display(format.Format_d(
+			c.GetName(), "CheckSnapshotCoherence()",
+			"✅ Un seul snapshot reçu : cohérent par définition."))
+		c.PrintSnapshotsTable()
+		c.SaveSnapshotToCSV()
+		return
 	}
 
 	for i := 0; i < len(ids); i++ {
@@ -539,7 +555,7 @@ func (c *ControlLayer) CheckSnapshotCoherence() {
 			if !utils.VectorClockCompatible(vi, vj) {
 				format.Display(format.Format_e(
 					c.GetName(), "CheckSnapshotCoherence()",
-					"❌ Incohérence détectée entre "+ids[i]+" et "+ids[j],
+					fmt.Sprintf("❌ Incohérence détectée entre %s (%v) et %s (%v)", ids[i], vi, ids[j], vj),
 				))
 				return
 			}
@@ -554,19 +570,9 @@ func (c *ControlLayer) CheckSnapshotCoherence() {
 	c.SaveSnapshotToCSV()
 }
 
-func (c *ControlLayer) getSensorNames() []string {
-	sensors := []string{}
-	for _, name := range c.knownSiteNames {
-		if strings.HasPrefix(name, "sensor") {
-			sensors = append(sensors, name)
-		}
-	}
-	return sensors
-}
-
 func (c *ControlLayer) PrintSnapshotsTable() {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
 	header := "📦  Snapshots reçus (" + strconv.Itoa(len(c.receivedSnapshots)) + " capteurs)"
 	sep := "────────────────────────────────────────────────────────────"
@@ -591,8 +597,8 @@ func (c *ControlLayer) PrintSnapshotsTable() {
 }
 
 func (c *ControlLayer) SaveSnapshotToCSV() {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
 	// Nom dynamique basé sur l’horloge Lamport du contrôleur
 	filename := fmt.Sprintf("snapshot_%d.csv", c.clock)

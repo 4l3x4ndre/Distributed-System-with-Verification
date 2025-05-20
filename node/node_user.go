@@ -104,27 +104,60 @@ func (u *UserNode) HandleMessage(channel chan string) {
 			// Optional: Log the current queue state for debugging
 			log.Printf("%s: Current readings queue for %s: %v", u.GetName(), msg_sender, queue)
 
-		// case "snapshot_verified":
-		// 	format.Display(format.Format_e(u.GetName(), "HandleMessage()", "Snapshot verified received from "+msg_sender))
-		// 	sensor := format.Findval(msg, "sender_name_source", u.GetName())
-		// 	snapshot := format.Findval(msg, "content_value", u.GetName())
-		// 	vc := format.Findval(msg, "vector_clock", u.GetName())
-		//
-		// 	// Couleurs ANSI
-		// 	green := "\033[32m"
-		// 	blue := "\033[34m"
-		// 	yellow := "\033[33m"
-		// 	reset := "\033[0m"
-		// 	bold := "\033[1m"
-		//
-		// 	fmt.Println()
-		// 	fmt.Println(bold + green + "📦  Snapshot Vérifié Reçu" + reset)
-		// 	fmt.Println(bold + "──────────────────────────────────────────────" + reset)
-		// 	fmt.Printf("📍 %sCapteur%s        : %s%s%s\n", blue, reset, yellow, sensor, reset)
-		// 	fmt.Printf("🧪 %sValeurs%s        : %s%s%s\n", blue, reset, yellow, snapshot, reset)
-		// 	fmt.Printf("🕒 %sHorloge vectorielle%s : %s%s%s\n", blue, reset, yellow, vc, reset)
-		// 	fmt.Println(bold + "──────────────────────────────────────────────" + reset)
-		// 	fmt.Println()
+		case "snapshot_request":
+			format.Display(format.Format_d(
+				u.GetName(), "HandleMessage()",
+				"📦 snapshot_request reçu"))
+
+			// Incrémenter horloge vectorielle
+			vcStr := format.Findval(msg, "vector_clock", u.GetName())
+			recvVC, err := utils.DeserializeVectorClock(vcStr)
+			if err == nil {
+				for i := 0; i < len(u.vectorClock); i++ {
+					u.vectorClock[i] = utils.Max(u.vectorClock[i], recvVC[i])
+				}
+				u.vectorClock[u.nodeIndex] += 1
+			}
+
+			// Créer la réponse avec horloge vectorielle uniquement
+			msgID := u.GenerateUniqueMessageID()
+			response := format.Msg_format_multi(format.Build_msg_args(
+				"id", msgID,
+				"type", "snapshot_response",
+				"sender_name", u.GetName(),
+				"sender_name_source", u.GetName(),
+				"sender_type", u.Type(),
+				"destination", format.Findval(msg, "sender_name_source", u.GetName()),
+				"clk", strconv.Itoa(u.clock),
+				"vector_clock", utils.SerializeVectorClock(u.vectorClock),
+				"content_type", "snapshot_data",
+				"content_value", "[]", // car les users n'ont pas de données capteur
+			))
+
+			format.Display(format.Format_d(u.GetName(), "HandleMessage()", "Sending snapshot_response"))
+			u.ctrlLayer.SendApplicationMsg(response)
+
+			// case "snapshot_verified":
+			// 	format.Display(format.Format_e(u.GetName(), "HandleMessage()", "Snapshot verified received from "+msg_sender))
+			// 	sensor := format.Findval(msg, "sender_name_source", u.GetName())
+			// 	snapshot := format.Findval(msg, "content_value", u.GetName())
+			// 	vc := format.Findval(msg, "vector_clock", u.GetName())
+			//
+			// 	// Couleurs ANSI
+			// 	green := "\033[32m"
+			// 	blue := "\033[34m"
+			// 	yellow := "\033[33m"
+			// 	reset := "\033[0m"
+			// 	bold := "\033[1m"
+			//
+			// 	fmt.Println()
+			// 	fmt.Println(bold + green + "📦  Snapshot Vérifié Reçu" + reset)
+			// 	fmt.Println(bold + "──────────────────────────────────────────────" + reset)
+			// 	fmt.Printf("📍 %sCapteur%s        : %s%s%s\n", blue, reset, yellow, sensor, reset)
+			// 	fmt.Printf("🧪 %sValeurs%s        : %s%s%s\n", blue, reset, yellow, snapshot, reset)
+			// 	fmt.Printf("🕒 %sHorloge vectorielle%s : %s%s%s\n", blue, reset, yellow, vc, reset)
+			// 	fmt.Println(bold + "──────────────────────────────────────────────" + reset)
+			// 	fmt.Println()
 		}
 
 	}
