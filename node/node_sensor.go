@@ -172,6 +172,7 @@ func (s *SensorNode) ID() string   { return s.id }
 func (s *SensorNode) Type() string { return s.nodeType }
 func (s *SensorNode) HandleMessage(channel chan string) {
 	for msg := range channel {
+		format.Display(format.Format_d(s.GetName(), "HandleMessage()", "📩 Message reçu : "+msg))
 		// 🔎 Identifier le type de message
 		msgType := format.Findval(msg, "type", s.GetName())
 
@@ -224,7 +225,7 @@ func (s *SensorNode) HandleMessage(channel chan string) {
 				"content_value", readingsStr,
 			))
 
-			// 🗂️ Log optionnel
+			// 🗂️ Log
 			format.Display(format.Format_d(s.GetName(), "HandleMessage()", "Sending snapshot_response: "+readingsStr))
 
 			s.ctrlLayer.SendApplicationMsg(msgResponse)
@@ -232,6 +233,8 @@ func (s *SensorNode) HandleMessage(channel chan string) {
 			if s.ctrlLayer.SendApplicationMsg(msg) == nil {
 				s.nbMsgSent = s.nbMsgSent + 1
 			}
+		default:
+			format.Display(format.Format_d(s.GetName(), "HandleMessage()", "🚫 Type non reconnu : "+msgType))
 		}
 	}
 }

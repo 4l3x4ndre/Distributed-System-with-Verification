@@ -175,7 +175,7 @@ func (c *ControlLayer) HandleMessage(msg string) error {
 			propagate_msg = true
 
 		case "snapshot_request":
-			// c.channel_to_application <- msg
+			c.channel_to_application <- msg
 			c.SendMsg(msg, true)
 			format.Display(format.Format_d(
 				c.GetName(), "HandleMessage()",
@@ -568,11 +568,14 @@ func (c *ControlLayer) PrintSnapshotsTable() {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	fmt.Println()
-	fmt.Println("📦  Snapshots reçus (" + strconv.Itoa(len(c.receivedSnapshots)) + " capteurs)")
-	fmt.Println("────────────────────────────────────────────────────────────")
-	fmt.Printf("| %-15s | %-22s | %-15s |\n", "Capteur", "Horloge vectorielle", "Valeurs")
-	fmt.Println("────────────────────────────────────────────────────────────")
+	header := "📦  Snapshots reçus (" + strconv.Itoa(len(c.receivedSnapshots)) + " capteurs)"
+	sep := "────────────────────────────────────────────────────────────"
+	tableHeader := fmt.Sprintf("| %-15s | %-22s | %-15s |", "Capteur", "Horloge vectorielle", "Valeurs")
+
+	format.Display(format.Format_d(c.GetName(), "PrintSnapshotsTable()", header))
+	format.Display(format.Format_d(c.GetName(), "PrintSnapshotsTable()", sep))
+	format.Display(format.Format_d(c.GetName(), "PrintSnapshotsTable()", tableHeader))
+	format.Display(format.Format_d(c.GetName(), "PrintSnapshotsTable()", sep))
 
 	for sensor, snapshot := range c.receivedSnapshots {
 		vcStr := fmt.Sprintf("%v", snapshot.VectorClock)
@@ -580,11 +583,11 @@ func (c *ControlLayer) PrintSnapshotsTable() {
 		if len(valStr) > 15 {
 			valStr = valStr[:12] + "..."
 		}
-		fmt.Printf("| %-15s | %-22s | %-15s |\n", sensor, vcStr, valStr)
+		row := fmt.Sprintf("| %-15s | %-22s | %-15s |", sensor, vcStr, valStr)
+		format.Display(format.Format_d(c.GetName(), "PrintSnapshotsTable()", row))
 	}
 
-	fmt.Println("────────────────────────────────────────────────────────────")
-	fmt.Println()
+	format.Display(format.Format_d(c.GetName(), "PrintSnapshotsTable()", sep))
 }
 
 func (c *ControlLayer) SaveSnapshotToCSV() {
