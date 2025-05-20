@@ -557,6 +557,8 @@ func (c *ControlLayer) CheckSnapshotCoherence() {
 					c.GetName(), "CheckSnapshotCoherence()",
 					fmt.Sprintf("❌ Incohérence détectée entre %s (%v) et %s (%v)", ids[i], vi, ids[j], vj),
 				))
+				c.PrintSnapshotsTable()
+				c.SaveSnapshotToCSV()
 				return
 			}
 		}
