@@ -2,6 +2,8 @@ package node
 
 import (
 	// "fmt"
+	"fmt"
+	"strings"
 	"time"
 
 	// "bufio" // Use bufio to read full line, as fmt.Scanln split at new line AND spaces
@@ -119,6 +121,16 @@ func (u *UserNode) HandleMessage(channel chan string) {
 				u.vectorClock[u.nodeIndex] += 1
 			}
 
+			var parts []string
+			for sensor, readings := range u.recentReadings {
+				strVals := make([]string, len(readings))
+				for i, val := range readings {
+					strVals[i] = fmt.Sprintf("%.2f", val)
+				}
+				parts = append(parts, sensor+"="+strings.Join(strVals, ";"))
+			}
+			readingsStr := strings.Join(parts, "|")
+
 			// Créer la réponse avec horloge vectorielle uniquement
 			msgID := u.GenerateUniqueMessageID()
 			response := format.Msg_format_multi(format.Build_msg_args(
@@ -131,7 +143,7 @@ func (u *UserNode) HandleMessage(channel chan string) {
 				"clk", strconv.Itoa(u.clock),
 				"vector_clock", utils.SerializeVectorClock(u.vectorClock),
 				"content_type", "snapshot_data",
-				"content_value", "[]", // car les users n'ont pas de données capteur
+				"content_value", readingsStr, // car les users n'ont pas de données capteur
 			))
 
 			format.Display(format.Format_d(u.GetName(), "HandleMessage()", "Sending snapshot_response"))

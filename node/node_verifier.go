@@ -3,7 +3,9 @@ package node
 import (
 	// "fmt"
 
+	"fmt"
 	"strconv"
+	"strings"
 
 	// "bufio" // Use bufio to read full line, as fmt.Scanln split at new line AND spaces
 	"os" // Use for the bufio reader: reads from os stdin
@@ -134,6 +136,16 @@ func (v *VerifierNode) HandleMessage(channel chan string) {
 			}
 
 			// Créer la réponse avec l'horloge vectorielle uniquement
+
+			var parts []string
+			for source, readings := range v.recentReadings {
+				values := make([]string, len(readings))
+				for i, val := range readings {
+					values[i] = fmt.Sprintf("%.2f", val)
+				}
+				parts = append(parts, source+"="+strings.Join(values, ";"))
+			}
+			readingsStr := strings.Join(parts, "|")
 			msgID := v.GenerateUniqueMessageID()
 			response := format.Msg_format_multi(format.Build_msg_args(
 				"id", msgID,
@@ -145,7 +157,7 @@ func (v *VerifierNode) HandleMessage(channel chan string) {
 				"clk", strconv.Itoa(v.clock),
 				"vector_clock", utils.SerializeVectorClock(v.vectorClock),
 				"content_type", "snapshot_data",
-				"content_value", "[]", // les verifieurs ne stockent pas de valeurs
+				"content_value", readingsStr, // les verifieurs ne stockent pas de valeurs
 			))
 
 			format.Display(format.Format_d(v.GetName(), "HandleMessage()", "Sending snapshot_response"))
