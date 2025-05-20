@@ -1,4 +1,7 @@
+*A better view of the diagrams is available at https://github.com/4l3x4ndre/Distributed-System-with-Verification/*
+
 # Distributed Data Sharing System (applied to Temperature) 🌦️ $\to$ ⚙️ $\to$ 📈
+
 
 ## Project Description 🗃️
 
