@@ -59,14 +59,12 @@ func (s *SensorNode) Start() error {
 				time.Sleep(10 * time.Millisecond)
 				continue
 			}
-			// ✅ Incrémenter l’horloge vectorielle locale
+			// ✅ Incrémenter l'horloge vectorielle locale
 			s.mu.Lock()
 			s.clk += 1
 			s_clk_str := strconv.Itoa(s.clk)
-			// if s.vectorClockReady == false {
 			s.vectorClock[s.nodeIndex] += 1
 			s_VC_str := utils.SerializeVectorClock(s.vectorClock)
-			// }
 			s.mu.Unlock()
 
 			// Générer une lecture
@@ -84,6 +82,7 @@ func (s *SensorNode) Start() error {
 			msg_id := s.GenerateUniqueMessageID()
 			msg := format.Msg_format_multi(format.Build_msg_args(
 				"id", msg_id,
+				"propagation", "true",
 				"type", "new_reading",
 				"sender_name", s.GetName(),
 				"sender_name_source", s.GetName(),
@@ -99,6 +98,7 @@ func (s *SensorNode) Start() error {
 			s.logFullMessage(msg_id, reading)
 
 			// Envoi vers couche application
+			format.Display_w(s.GetName(), "Start()", "Sending message to application layer: "+msg)
 			if (*s.ctrlLayer).SendApplicationMsg(msg) == nil {
 				s.mu.Lock()
 				s.nbMsgSent = s.nbMsgSent + 1
@@ -217,7 +217,8 @@ func (v *SensorNode) SendMessage(msg string, toHandleMessageArgs ...bool) {
 	msg = format.Replaceval(msg, "id", v.GenerateUniqueMessageID())
 
 	if toHandleMessage {
-		v.ctrlLayer.HandleMessage(msg)
+		// v.ctrlLayer.HandleMessage(msg)
+		v.channel_to_ctrl <- msg
 	} else {
 		v.ctrlLayer.SendApplicationMsg(msg)
 	}
