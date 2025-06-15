@@ -39,6 +39,12 @@ type Node interface {
 	// SetVectorClock updates the node's vector clock and related properties.
 	SetVectorClock(newVC []int, siteNames []string)
 
+	// GetVectorClock returns a copy of the node's vector clock.
+	GetVectorClock() []int
+
+	// SetVectorClock updates the node's vector clock and related properties.
+	SetVectorClock(newVC []int, siteNames []string)
+
 	GetLocalState() string
 
 	// GetApplicationState returns the application-specific state of the node.
@@ -75,6 +81,7 @@ func NewBaseNode(id, nodeType string) BaseNode {
 		nodeIndex:        0,
 		vectorClockReady: false,
 		channel_to_ctrl:  make(chan string, 10), // Buffered channel for control messages
+		channel_to_ctrl:  make(chan string, 10), // Buffered channel for control messages
 	}
 }
 
@@ -102,10 +109,31 @@ func (n *BaseNode) GetName() string {
 
 func (n *BaseNode) SetControlLayer(c *ControlLayer) error {
 	n.mu.Lock()
+	n.mu.Lock()
 	n.ctrlLayer = c
 	n.mu.Unlock()
 	go n.ctrlLayer.HandleMessage(n.channel_to_ctrl)
+	n.mu.Unlock()
+	go n.ctrlLayer.HandleMessage(n.channel_to_ctrl)
 	return nil
+}
+
+func (n *BaseNode) GetVectorClock() []int {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	// Return a copy to prevent race conditions
+	vcCopy := make([]int, len(n.vectorClock))
+	copy(vcCopy, n.vectorClock)
+	return vcCopy
+}
+
+func (n *BaseNode) SetVectorClock(newVC []int, siteNames []string) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	n.vectorClock = newVC
+	// Use the control layer's name to find the index, as this is what is in siteNames
+	n.nodeIndex = utils.FindIndex(n.ctrlLayer.GetName(), siteNames)
+	n.vectorClockReady = true
 }
 
 func (n *BaseNode) GetVectorClock() []int {

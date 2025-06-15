@@ -133,6 +133,8 @@ func (c *ControlLayer) Start() error {
 
 	// select {}
 	return nil
+	// select {}
+	return nil
 }
 
 // HandleMessage processes incoming messages

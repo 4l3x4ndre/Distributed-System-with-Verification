@@ -203,6 +203,8 @@ func (v *UserNode) SendMessage(msg string, toHandleMessageArgs ...bool) {
 	if toHandleMessage {
 		// v.ctrlLayer.HandleMessage(msg)
 		v.channel_to_ctrl <- msg
+		// v.ctrlLayer.HandleMessage(msg)
+		v.channel_to_ctrl <- msg
 	} else {
 		v.ctrlLayer.SendApplicationMsg(msg)
 	}

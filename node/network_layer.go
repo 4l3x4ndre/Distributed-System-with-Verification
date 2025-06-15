@@ -100,6 +100,8 @@ func (n *NetworkLayer) Start() {
 		n.waitingForAdmission = false // No peers, no admission request needed
 		// n.controlLayer.SetNetworkLayer(n)
 		n.StartControlLayer()
+		// n.controlLayer.SetNetworkLayer(n)
+		n.StartControlLayer()
 	} else {
 		n.waitingForAdmission = true // Set to true to wait for admission request
 	}
@@ -117,6 +119,20 @@ func (n *NetworkLayer) Start() {
 		go n.startClient(peer, &wg)
 	}
 
+	// go func() {
+	// 	// Start control layer once the network layer is ready
+	// 	for {
+	// 		n.mu.Lock()
+	// 		waitingForAdmission := n.waitingForAdmission
+	// 		n.mu.Unlock()
+	// 		if !waitingForAdmission {
+	// 			break // Exit the loop if admission is granted
+	// 		}
+	// 		time.Sleep(1 * time.Second) // Wait until the admission is granted
+	// 	}
+	// 	format.Display_network(n.GetName(), "Start()", "Admission granted, starting control layer.")
+	// 	n.controlLayer.Start()
+	// }()
 	// go func() {
 	// 	// Start control layer once the network layer is ready
 	// 	for {
@@ -258,6 +274,8 @@ func (n *NetworkLayer) SendMessage(msg string, dest_id int, toCtrlLayerArg ...bo
 	if toCtrlLayer {
 		// n.controlLayer.HandleMessage(msg) // Pass the message to the control layer
 		n.channel_to_control <- msg // Send the message to the control layer through the channel
+		// n.controlLayer.HandleMessage(msg) // Pass the message to the control layer
+		n.channel_to_control <- msg // Send the message to the control layer through the channel
 	} else {
 		// Start connection:
 		if dest_id == -1 {
@@ -321,6 +339,7 @@ func (n *NetworkLayer) handleConnection(conn net.Conn) {
 
 		if n.electionInProgress && !slices.Contains(n.knownPeersIDs, peer_id_str) {
 			break // Ignore messages from nodes that are not known when an election is in progress
+			break // Ignore messages from nodes that are not known when an election is in progress
 		}
 
 		// format.Display_network(n.GetName(), "handleConnection()", fmt.Sprintf("Processing message: ID %s of type %s frrom source %s",
@@ -330,6 +349,7 @@ func (n *NetworkLayer) handleConnection(conn net.Conn) {
 		// (no propagation for admission messages that are handled separately)
 
 		msg_type := format.Findval(msg, "type")
+		if msg_type == "admission_request" && !n.electionInProgress && !n.waitingForAdmission {
 		if msg_type == "admission_request" && !n.electionInProgress && !n.waitingForAdmission {
 			n.handleAdmissionRequest(msg, conn)
 		} else if msg_type == "admission_granted" {
@@ -345,10 +365,15 @@ func (n *NetworkLayer) handleConnection(conn net.Conn) {
 				// then I am the destination of the message.
 				// Do something with the message
 			} else if format.Findval(msg, "destination") == "control" || format.Findval(msg, "destination") == "applications" {
+			} else if format.Findval(msg, "destination") == "control" || format.Findval(msg, "destination") == "applications" {
 				// it is a message for me.the upper layers. => Pass to control layer
 				// go n.controlLayer.HandleMessage(msg)
 				n.channel_to_control <- msg // Send the message to the control layer through the channel
+				// go n.controlLayer.HandleMessage(msg)
+				n.channel_to_control <- msg // Send the message to the control layer through the channel
 			} else if format.Findval(msg, "destination") == n.controlLayer.GetName() {
+				// go n.controlLayer.HandleMessage(msg)
+				n.channel_to_control <- msg // Send the message to the control layer through the channel
 				// go n.controlLayer.HandleMessage(msg)
 				n.channel_to_control <- msg // Send the message to the control layer through the channel
 				canPropagateMessage = false
@@ -592,6 +617,9 @@ func (n *NetworkLayer) handleAdmissionGranted(msg string, conn net.Conn) {
 		if len(n.activeNeighborsIDs) == len(n.peers) {
 			n.waitingForAdmission = false // All peers are connected, no more waiting for admission
 			format.Display_network(n.GetName(), "handleAdmissionGranted()", "All peers are connected, no more waiting for admission.")
+
+			n.StartControlLayer()
+
 
 			n.StartControlLayer()
 
